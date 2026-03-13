@@ -92,6 +92,59 @@ async def write_audit(action: str, user: str, details: str = "", org_id: str = N
 # Root
 # ─────────────────────────────────────────────
 
+# ─────────────────────────────────────────────
+# DEMO SEED
+# ─────────────────────────────────────────────
+
+DEMO_USERS = [
+    {
+        "name": "Gov Admin",
+        "email": "gov@demo.com",
+        "password": "demo1234",
+        "role": "admin",
+        "org_name": "Demo Government Agency",
+        "org_type": "government",
+    },
+    {
+        "name": "Enterprise Admin",
+        "email": "enterprise@demo.com",
+        "password": "demo1234",
+        "role": "admin",
+        "org_name": "Demo Corp Inc",
+        "org_type": "enterprise",
+    },
+]
+
+
+@app.on_event("startup")
+async def seed_demo_users():
+    for u in DEMO_USERS:
+        existing = await users_collection.find_one({"email": u["email"]})
+        if existing:
+            continue
+        org = await organizations_collection.find_one({"name": u["org_name"]})
+        if not org:
+            org_doc = {"name": u["org_name"], "org_type": u["org_type"], "created_at": datetime.utcnow()}
+            result = await organizations_collection.insert_one(org_doc)
+            org_id = str(result.inserted_id)
+        else:
+            org_id = str(org["_id"])
+        await users_collection.insert_one({
+            "name": u["name"],
+            "email": u["email"],
+            "password": hash_password(u["password"]),
+            "role": u["role"],
+            "org_id": org_id,
+            "org_name": u["org_name"],
+            "org_type": u["org_type"],
+            "created_at": datetime.utcnow(),
+        })
+
+
+# ─────────────────────────────────────────────
+# Root
+# ─────────────────────────────────────────────
+
 @app.get("/")
 def home():
     return {"message": "AI FinOps Platform v2.0 Running", "status": "healthy"}
